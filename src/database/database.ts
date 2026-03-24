@@ -141,6 +141,20 @@ export async function getTranslatedChapterCount(bookId: number): Promise<number>
   return chapters.filter(c => c.isTranslated).length;
 }
 
+export async function deleteChapter(chapterId: number): Promise<void> {
+  const data = await AsyncStorage.getItem(KEYS.CHAPTERS);
+  if (!data) return;
+  const allChapters: Chapter[] = JSON.parse(data);
+  const chapter = allChapters.find(c => c.id === chapterId);
+  if (!chapter) return;
+  const bookId = chapter.bookId;
+  const remaining = allChapters.filter(c => c.id !== chapterId);
+  // Renumber chapters for this book
+  const bookChapters = remaining.filter(c => c.bookId === bookId).sort((a, b) => a.chapterNumber - b.chapterNumber);
+  bookChapters.forEach((c, i) => { c.chapterNumber = i + 1; });
+  await AsyncStorage.setItem(KEYS.CHAPTERS, JSON.stringify(remaining));
+}
+
 export async function swapChapterOrder(bookId: number, chapterIdA: number, chapterIdB: number): Promise<void> {
   const data = await AsyncStorage.getItem(KEYS.CHAPTERS);
   if (!data) return;

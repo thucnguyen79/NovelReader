@@ -20,6 +20,7 @@ import {
   getTranslatedChapterCount,
 } from '../../src/database/database';
 import { Book } from '../../src/database/types';
+import { t } from '../../src/i18n/i18n';
 
 interface BookWithMeta extends Book {
   chapterCount: number;
@@ -62,12 +63,12 @@ export default function LibraryScreen() {
 
   const handleDeleteBook = (book: Book) => {
     Alert.alert(
-      'Xóa sách',
-      `Bạn có chắc muốn xóa "${book.title}"?`,
+      t('library.deleteTitle'),
+      `${t('library.deleteMsg', { title: book.title })}`,
       [
-        { text: 'Hủy', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Xóa',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             await deleteBook(book.id);
@@ -82,10 +83,10 @@ export default function LibraryScreen() {
     <View style={styles.emptyContainer}>
       <Ionicons name="book-outline" size={80} color={colors.textMuted} />
       <Text style={[styles.emptyTitle, { color: colors.text }]}>
-        Thư viện trống
+        {t('library.empty')}
       </Text>
       <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-        Bấm nút + để thêm sách mới
+        {t('library.emptyHint')}
       </Text>
     </View>
   );
@@ -94,9 +95,9 @@ export default function LibraryScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.surface }]}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>📖 Thư Viện</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('library.title')}</Text>
         <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
-          {books.length} cuốn sách
+          {t('library.bookCount', { count: books.length })}
         </Text>
       </View>
 

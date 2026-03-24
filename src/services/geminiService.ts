@@ -1,4 +1,5 @@
 import { getSetting } from '../database/database';
+import { getTargetLanguageName } from '../i18n/i18n';
 
 interface GeminiResponse {
   candidates?: Array<{
@@ -24,7 +25,7 @@ export async function translateText(
   apiKey: string,
   retryCount: number = 0
 ): Promise<string> {
-  const prompt = buildTranslationPrompt(text, contextSummary);
+  const prompt = buildTranslationPrompt(text, contextSummary, await getTranslationLanguage());
   const model = await getGeminiModel();
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
@@ -82,20 +83,26 @@ export async function translateText(
   return result.trim();
 }
 
-function buildTranslationPrompt(text: string, contextSummary: string): string {
-  let prompt = `Bạn là dịch giả chuyên nghiệp chuyên dịch tiểu thuyết và truyện. Hãy dịch đoạn văn sau sang tiếng Việt.
+async function getTranslationLanguage(): Promise<string> {
+  const lang = await getSetting('translationLanguage');
+  return lang || 'vi';
+}
 
-Yêu cầu:
-- Dịch tự nhiên, giữ phong cách văn học, không dịch sát nghĩa từng từ
-- Giữ ngữ cảnh và cảm xúc của câu chuyện
-- Tên nhân vật giữ nguyên hoặc phiên âm tự nhiên
-- Không thêm ghi chú hay giải thích, chỉ trả về bản dịch`;
+function buildTranslationPrompt(text: string, contextSummary: string, targetLang: string = 'vi'): string {
+  const langName = getTargetLanguageName(targetLang);
+  let prompt = `You are a professional translator specializing in novels and fiction. Translate the following text into ${langName}.
+
+Requirements:
+- Translate naturally, keep the literary style, do not translate word by word
+- Preserve context and emotions of the story
+- Keep character names as-is or transliterate naturally
+- Return only the translation, no notes or explanations`;
 
   if (contextSummary) {
-    prompt += `\n\nNgữ cảnh trước đó:\n${contextSummary}`;
+    prompt += `\n\nPrevious context:\n${contextSummary}`;
   }
 
-  prompt += `\n\nNội dung cần dịch:\n${text}`;
+  prompt += `\n\nText to translate:\n${text}`;
 
   return prompt;
 }

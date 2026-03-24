@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { Typography, Spacing, BorderRadius } from '../src/theme/typography';
 import { createBook, createChapter } from '../src/database/database';
+import { t } from '../src/i18n/i18n';
 
 export default function AddBookScreen() {
   const { colors } = useTheme();
@@ -30,10 +31,10 @@ export default function AddBookScreen() {
       if (text) {
         setContent(text);
       } else {
-        Alert.alert('Thông báo', 'Clipboard trống');
+        Alert.alert(t('common.notice'), t('addBook.clipboardEmpty'));
       }
     } catch (error) {
-      Alert.alert('Lỗi', 'Không thể đọc clipboard');
+      Alert.alert(t('common.error'), 'Cannot read clipboard');
     }
   };
 
@@ -88,11 +89,11 @@ export default function AddBookScreen() {
 
   const handleSave = async () => {
     if (!title.trim()) {
-      Alert.alert('Thiếu thông tin', 'Vui lòng nhập tên sách');
+      Alert.alert(t('addBook.missingInfo'), t('addBook.needTitle'));
       return;
     }
     if (!content.trim()) {
-      Alert.alert('Thiếu thông tin', 'Vui lòng nhập nội dung');
+      Alert.alert(t('addBook.missingInfo'), t('addBook.needContent'));
       return;
     }
 
@@ -106,13 +107,13 @@ export default function AddBookScreen() {
       }
 
       Alert.alert(
-        'Thành công',
-        `Đã lưu "${title}" với ${chapters.length} chương`,
-        [{ text: 'OK', onPress: () => router.back() }]
+        t('addBook.success'),
+        t('addBook.savedMsg', { title, count: chapters.length }),
+        [{ text: t('common.ok'), onPress: () => router.back() }]
       );
     } catch (error) {
       console.error('Error saving book:', error);
-      Alert.alert('Lỗi', 'Không thể lưu sách');
+      Alert.alert(t('common.error'), t('addBook.error'));
     } finally {
       setSaving(false);
     }
@@ -130,7 +131,7 @@ export default function AddBookScreen() {
         contentContainerStyle={styles.content}
       >
         {/* Title input */}
-        <Text style={[styles.label, { color: colors.textSecondary }]}>Tên sách</Text>
+        <Text style={[styles.label, { color: colors.textSecondary }]}>{t('addBook.bookName')}</Text>
         <TextInput
           style={[
             styles.titleInput,
@@ -142,16 +143,16 @@ export default function AddBookScreen() {
           ]}
           value={title}
           onChangeText={setTitle}
-          placeholder="Nhập tên sách..."
+          placeholder={t('addBook.bookNamePlaceholder')}
           placeholderTextColor={colors.textMuted}
         />
 
         {/* Content area */}
         <View style={styles.contentHeader}>
-          <Text style={[styles.label, { color: colors.textSecondary }]}>Nội dung</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>{t('addBook.content')}</Text>
           <TouchableOpacity onPress={handlePaste} style={[styles.pasteBtn, { backgroundColor: colors.surfaceElevated }]}>
             <Ionicons name="clipboard-outline" size={16} color={colors.primary} />
-            <Text style={[styles.pasteBtnText, { color: colors.primary }]}>Dán từ clipboard</Text>
+            <Text style={[styles.pasteBtnText, { color: colors.primary }]}>{t('addBook.paste')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -166,7 +167,7 @@ export default function AddBookScreen() {
           ]}
           value={content}
           onChangeText={setContent}
-          placeholder="Dán hoặc nhập nội dung truyện tại đây..."
+          placeholder={t('addBook.contentPlaceholder')}
           placeholderTextColor={colors.textMuted}
           multiline
           textAlignVertical="top"
@@ -175,7 +176,7 @@ export default function AddBookScreen() {
         {/* Word count */}
         {content.length > 0 && (
           <Text style={[styles.wordCount, { color: colors.textMuted }]}>
-            {content.length.toLocaleString()} ký tự · {wordCount.toLocaleString()} từ
+            {t('addBook.chars', { count: content.length.toLocaleString() })} · {t('addBook.words', { count: wordCount.toLocaleString() })}
           </Text>
         )}
 
@@ -183,7 +184,7 @@ export default function AddBookScreen() {
         <View style={[styles.infoBox, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
           <Ionicons name="information-circle" size={18} color={colors.primary} />
           <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-            App sẽ tự động chia nội dung thành các chương dựa trên tiêu đề chương (Chương 1, Chapter 1, 第一章...)
+            {t('addBook.autoSplitHint')}
           </Text>
         </View>
 
@@ -194,7 +195,7 @@ export default function AddBookScreen() {
           style={[styles.saveBtn, { backgroundColor: saving ? colors.textMuted : colors.primary }]}
         >
           <Ionicons name="save" size={20} color="#FFFFFF" />
-          <Text style={styles.saveBtnText}>{saving ? 'Đang lưu...' : 'Lưu Sách'}</Text>
+          <Text style={styles.saveBtnText}>{saving ? t('addBook.saving') : t('addBook.save')}</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>

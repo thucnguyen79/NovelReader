@@ -19,9 +19,12 @@ import {
   getSetting,
   updateChapterTranslation,
   swapChapterOrder,
+  deleteChapter,
+  createChapter,
 } from '../../src/database/database';
 import { Book, Chapter, ReadingProgress } from '../../src/database/types';
 import { translateChapter } from '../../src/services/geminiService';
+import { t } from '../../src/i18n/i18n';
 
 export default function BookDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -56,33 +59,33 @@ export default function BookDetailScreen() {
     const apiKey = await getSetting('geminiApiKey');
     if (!apiKey) {
       Alert.alert(
-        'Chưa có API Key',
-        'Vui lòng nhập Google Gemini API key trong Cài Đặt',
+        t('book.noApiKey'),
+        t('book.noApiKeyMsg'),
         [
-          { text: 'Hủy', style: 'cancel' },
-          { text: 'Đi tới Cài Đặt', onPress: () => router.push('/(tabs)/settings') },
+          { text: t('common.cancel'), style: 'cancel' },
+          { text: t('book.goSettings'), onPress: () => router.push('/(tabs)/settings') },
         ]
       );
       return;
     }
 
     setTranslatingId(chapter.id);
-    setTranslationProgress('Đang dịch...');
+    setTranslationProgress(t('book.translating', { current: 0, total: 1 }));
 
     try {
       const translated = await translateChapter(
         chapter.originalContent,
         apiKey,
         (current, total) => {
-          setTranslationProgress(`Đang dịch phần ${current}/${total}...`);
+          setTranslationProgress(t('book.translating', { current, total }));
         }
       );
 
       await updateChapterTranslation(chapter.id, translated);
       await loadData();
-      Alert.alert('Thành công', `Đã dịch xong "${chapter.title}"`);
+      Alert.alert(t('addBook.success'), t('book.translateSuccess', { title: chapter.title }));
     } catch (error: any) {
-      Alert.alert('Lỗi dịch', error.message || 'Có lỗi xảy ra khi dịch');
+      Alert.alert(t('common.error'), error.message || t('book.translateError'));
     } finally {
       setTranslatingId(null);
       setTranslationProgress('');
@@ -92,17 +95,17 @@ export default function BookDetailScreen() {
   const handleTranslateAll = () => {
     const untranslated = chapters.filter((ch) => !ch.isTranslated);
     if (untranslated.length === 0) {
-      Alert.alert('Thông báo', 'Tất cả chương đã được dịch');
+      Alert.alert(t('common.notice'), t('book.allTranslated'));
       return;
     }
 
     Alert.alert(
-      'Dịch tất cả',
-      `Bạn muốn dịch ${untranslated.length} chương chưa dịch?`,
+      t('book.translateAll'),
+      t('book.translateConfirm', { count: untranslated.length }),
       [
-        { text: 'Hủy', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Dịch',
+          text: t('common.translate'),
           onPress: async () => {
             for (const chapter of untranslated) {
               await handleTranslateChapter(chapter);
@@ -122,11 +125,46 @@ export default function BookDetailScreen() {
 
   const handleRetranslate = (chapter: Chapter) => {
     Alert.alert(
-      'Dịch lại',
-      `Bạn muốn dịch lại "${chapter.title}"? Bản dịch cũ sẽ bị ghi đè.`,
+      t('book.retranslate'),
+      t('book.retranslateMsg', { title: chapter.title }),
       [
-        { text: 'Hủy', style: 'cancel' },
-        { text: 'Dịch lại', style: 'destructive', onPress: () => handleTranslateChapter(chapter) },
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('book.retranslate'), style: 'destructive', onPress: () => handleTranslateChapter(chapter) },
+      ]
+    );
+  };
+
+  const handleAddChapter = () => {
+    if (!book) return;
+    Alert.prompt
+      ? Alert.prompt(t('book.addChapter'), t('book.chapterTitle'), async (title) => {
+          if (!title?.trim()) return;
+          const newNum = chapters.length + 1;
+          await createChapter(book.id, newNum, title.trim(), '');
+          await loadData();
+        })
+      : (() => {
+          // Android fallback: create chapter with default title
+          const newNum = chapters.length + 1;
+          const title = `${t('book.addChapter')} ${newNum}`;
+          createChapter(book.id, newNum, title, '').then(() => loadData());
+        })();
+  };
+
+  const handleDeleteChapter = (chapter: Chapter) => {
+    Alert.alert(
+      t('book.deleteChapter'),
+      t('book.deleteChapterMsg', { title: chapter.title }),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.delete'),
+          style: 'destructive',
+          onPress: async () => {
+            await deleteChapter(chapter.id);
+            await loadData();
+          },
+        },
       ]
     );
   };
@@ -148,7 +186,7 @@ export default function BookDetailScreen() {
         <Ionicons name="book" size={40} color="rgba(255,255,255,0.9)" />
         <Text style={styles.bookTitle}>{book.title}</Text>
         <Text style={styles.bookMeta}>
-          {chapters.length} chương · {translatedCount} đã dịch
+          {t('book.chapters', { count: chapters.length })} · {t('book.translated', { count: translatedCount })}
         </Text>
       </View>
 
@@ -160,7 +198,7 @@ export default function BookDetailScreen() {
             onPress={() => router.push(`/reader/${progress.chapterId}`)}
           >
             <Ionicons name="play" size={18} color="#FFFFFF" />
-            <Text style={styles.continueBtnText}>Đọc tiếp</Text>
+            <Text style={styles.continueBtnText}>{t('book.continueReading')}</Text>
           </TouchableOpacity>
         )}
 
@@ -169,7 +207,15 @@ export default function BookDetailScreen() {
           onPress={handleTranslateAll}
         >
           <Ionicons name="language" size={18} color={colors.primary} />
-          <Text style={[styles.translateAllText, { color: colors.primary }]}>Dịch tất cả</Text>
+          <Text style={[styles.translateAllText, { color: colors.primary }]}>{t('book.translateAll')}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.translateAllBtn, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
+          onPress={handleAddChapter}
+        >
+          <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
+          <Text style={[styles.translateAllText, { color: colors.primary }]}>{t('book.addChapter')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -182,6 +228,7 @@ export default function BookDetailScreen() {
           <TouchableOpacity
             style={[styles.chapterItem, { backgroundColor: colors.surfaceCard, borderColor: colors.border }]}
             onPress={() => router.push(`/reader/${item.id}`)}
+            onLongPress={() => handleDeleteChapter(item)}
             disabled={translatingId === item.id}
           >
             {/* Reorder buttons */}

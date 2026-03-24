@@ -28,6 +28,7 @@ import {
 import { translateChapter } from '../../src/services/geminiService';
 import { splitIntoSentences } from '../../src/services/ttsService';
 import { Chapter } from '../../src/database/types';
+import { t } from '../../src/i18n/i18n';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -90,7 +91,7 @@ export default function ReaderScreen() {
     if (!chapter) return;
     const apiKey = await getSetting('geminiApiKey');
     if (!apiKey) {
-      Alert.alert('Chưa có API Key', 'Vui lòng nhập Gemini API key trong Cài Đặt');
+      Alert.alert(t('book.noApiKey'), t('book.noApiKeyMsg'));
       return;
     }
 
@@ -100,14 +101,14 @@ export default function ReaderScreen() {
         chapter.originalContent,
         apiKey,
         (current, total) => {
-          setTranslationProgress(`Đang dịch ${current}/${total}...`);
+          setTranslationProgress(t('book.translating', { current, total }));
         }
       );
       await updateChapterTranslation(chapter.id, translated);
       await loadChapter();
       setShowTranslated(true);
     } catch (error: any) {
-      Alert.alert('Lỗi', error.message);
+      Alert.alert(t('common.error'), error.message);
     } finally {
       setTranslating(false);
       setTranslationProgress('');
@@ -128,7 +129,7 @@ export default function ReaderScreen() {
     }
     await loadChapter();
     setIsEditing(false);
-    Alert.alert('Đã lưu', 'Nội dung đã được cập nhật.');
+    Alert.alert(t('reader.saved'), t('reader.savedMsg'));
   };
 
   const handleCancelEdit = () => {
@@ -139,11 +140,11 @@ export default function ReaderScreen() {
   const handleRetranslate = () => {
     if (!chapter?.isTranslated) return;
     Alert.alert(
-      'Dịch lại',
-      'Bản dịch cũ sẽ bị ghi đè. Tiếp tục?',
+      t('book.retranslate'),
+      t('reader.retranslateConfirm'),
       [
-        { text: 'Hủy', style: 'cancel' },
-        { text: 'Dịch lại', style: 'destructive', onPress: handleTranslate },
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('book.retranslate'), style: 'destructive', onPress: handleTranslate },
       ]
     );
   };
@@ -243,7 +244,7 @@ export default function ReaderScreen() {
                   onPress={() => setShowTranslated(true)}
                 >
                   <Text style={[styles.toggleText, { color: showTranslated ? '#FFF' : colors.text }]}>
-                    🇻🇳 Bản dịch
+                    {t('reader.translated')}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -255,7 +256,7 @@ export default function ReaderScreen() {
                   onPress={() => setShowTranslated(false)}
                 >
                   <Text style={[styles.toggleText, { color: !showTranslated ? '#FFF' : colors.text }]}>
-                    📄 Bản gốc
+                    {t('reader.original')}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -275,12 +276,12 @@ export default function ReaderScreen() {
                 {translating ? (
                   <>
                     <ActivityIndicator size="small" color="#FFF" />
-                    <Text style={styles.translateBtnText}>{translationProgress || 'Đang dịch...'}</Text>
+                    <Text style={styles.translateBtnText}>{translationProgress || t('book.translating', { current: 0, total: 1 })}</Text>
                   </>
                 ) : (
                   <>
                     <Ionicons name="language" size={18} color="#FFF" />
-                    <Text style={styles.translateBtnText}>Dịch chương này</Text>
+                    <Text style={styles.translateBtnText}>{t('reader.translate')}</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -313,14 +314,14 @@ export default function ReaderScreen() {
                   onPress={handleCancelEdit}
                 >
                   <Ionicons name="close" size={18} color={colors.textSecondary} />
-                  <Text style={[styles.editBtnLabel, { color: colors.textSecondary }]}>Hủy</Text>
+                  <Text style={[styles.editBtnLabel, { color: colors.textSecondary }]}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.editSaveBtn, { backgroundColor: colors.primary }]}
                   onPress={handleSaveEdit}
                 >
                   <Ionicons name="checkmark" size={18} color="#FFF" />
-                  <Text style={[styles.editBtnLabel, { color: '#FFF' }]}>Lưu</Text>
+                  <Text style={[styles.editBtnLabel, { color: '#FFF' }]}>{t('common.save')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -352,7 +353,7 @@ export default function ReaderScreen() {
             disabled={!hasPrev}
           >
             <Ionicons name="chevron-back" size={20} color={hasPrev ? colors.text : colors.textMuted} />
-            <Text style={[styles.navText, { color: hasPrev ? colors.text : colors.textMuted }]}>Chương trước</Text>
+            <Text style={[styles.navText, { color: hasPrev ? colors.text : colors.textMuted }]}>{t('reader.prevChapter')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -360,7 +361,7 @@ export default function ReaderScreen() {
             onPress={() => navigateChapter('next')}
             disabled={!hasNext}
           >
-            <Text style={[styles.navText, { color: hasNext ? colors.text : colors.textMuted }]}>Chương sau</Text>
+            <Text style={[styles.navText, { color: hasNext ? colors.text : colors.textMuted }]}>{t('reader.nextChapter')}</Text>
             <Ionicons name="chevron-forward" size={20} color={hasNext ? colors.text : colors.textMuted} />
           </TouchableOpacity>
         </View>

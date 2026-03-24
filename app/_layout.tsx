@@ -2,8 +2,14 @@ import React, { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ThemeProvider, useTheme } from '../src/theme/ThemeProvider';
+import { loadLanguage, t } from '../src/i18n/i18n';
+
 function RootLayoutInner() {
   const { colors, isDark } = useTheme();
+
+  useEffect(() => {
+    loadLanguage();
+  }, []);
 
   return (
     <>
@@ -24,18 +30,18 @@ function RootLayoutInner() {
         <Stack.Screen
           name="add-book"
           options={{
-            title: 'Thêm Sách Mới',
+            title: t('addBook.title'),
             presentation: 'modal',
           }}
         />
         <Stack.Screen
           name="book/[id]"
-          options={{ title: 'Chi Tiết Sách' }}
+          options={{ title: t('book.title') }}
         />
         <Stack.Screen
           name="reader/[chapterId]"
           options={{
-            title: 'Đọc Truyện',
+            title: t('reader.title'),
             headerShown: false,
           }}
         />

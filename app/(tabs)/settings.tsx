@@ -7,12 +7,12 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
-  Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { Typography, Spacing, BorderRadius } from '../../src/theme/typography';
 import { getSetting, setSetting } from '../../src/database/database';
+import { t, getLanguage, saveLanguage, TARGET_LANGUAGES, loadLanguage } from '../../src/i18n/i18n';
 
 export default function SettingsScreen() {
   const { colors, isDark, themeMode, setThemeMode } = useTheme();
@@ -23,12 +23,15 @@ export default function SettingsScreen() {
   const [customModel, setCustomModel] = useState('');
   const [detecting, setDetecting] = useState(false);
   const [detectedModels, setDetectedModels] = useState<string[]>([]);
+  const [appLang, setAppLang] = useState<'vi' | 'en'>(getLanguage());
+  const [transLang, setTransLang] = useState('vi');
+  const [, forceUpdate] = useState(0);
 
   const AVAILABLE_MODELS = [
-    { id: 'gemini-2.0-flash-exp', name: '2.0 Flash (Thử nghiệm)' },
-    { id: 'gemini-1.5-flash-8b', name: '1.5 Flash 8B (Nhẹ)' },
-    { id: 'gemini-1.5-flash', name: '1.5 Flash (Nhanh)' },
-    { id: 'gemini-2.0-flash', name: '2.0 Flash (Mới)' },
+    { id: 'gemini-2.0-flash-exp', name: '2.0 Flash (Exp)' },
+    { id: 'gemini-1.5-flash-8b', name: '1.5 Flash 8B' },
+    { id: 'gemini-1.5-flash', name: '1.5 Flash' },
+    { id: 'gemini-2.0-flash', name: '2.0 Flash' },
   ];
 
   useEffect(() => {
@@ -43,12 +46,18 @@ export default function SettingsScreen() {
         }
       }
     });
+    getSetting('translationLanguage').then((l) => {
+      if (l) setTransLang(l);
+    });
+    loadLanguage().then(() => {
+      setAppLang(getLanguage());
+    });
   }, []);
 
   const handleDetectModels = async () => {
     const key = apiKey.trim();
     if (!key) {
-      Alert.alert('Lỗi', 'Vui lòng nhập API Key trước.');
+      Alert.alert(t('common.error'), t('settings.apiKeyPlaceholder'));
       return;
     }
     setDetecting(true);
@@ -59,7 +68,7 @@ export default function SettingsScreen() {
       );
       if (!resp.ok) {
         const errText = await resp.text();
-        Alert.alert('Lỗi API Key', `API Key không hợp lệ hoặc bị lỗi (${resp.status}):\n${errText.slice(0, 200)}`);
+        Alert.alert(t('common.error'), `API Key error (${resp.status}):\n${errText.slice(0, 200)}`);
         setDetecting(false);
         return;
       }
@@ -72,19 +81,18 @@ export default function SettingsScreen() {
         .filter((name: string) => name.length > 0);
 
       if (models.length === 0) {
-        Alert.alert('Không tìm thấy', 'API Key này không có quyền truy cập bất kỳ mô hình nào hỗ trợ generateContent.');
+        Alert.alert(t('common.notice'), 'No models found for this API Key.');
       } else {
         setDetectedModels(models);
-        // Auto-select first flash model or first model
         const flash = models.find(m => m.includes('flash'));
         const pick = flash || models[0];
         setModel(pick);
         setCustomModel('');
         await setSetting('geminiModel', pick);
-        Alert.alert('Thành công!', `Tìm thấy ${models.length} mô hình. Đã tự động chọn "${pick}". Bấm "Lưu Cài Đặt" để lưu lại.`);
+        Alert.alert(t('common.ok'), `Found ${models.length} models. Auto-selected "${pick}".`);
       }
     } catch (err: any) {
-      Alert.alert('Lỗi mạng', err.message || 'Không thể kết nối tới Google API.');
+      Alert.alert(t('common.error'), err.message || 'Network error.');
     }
     setDetecting(false);
   };
@@ -93,6 +101,7 @@ export default function SettingsScreen() {
     const finalModel = customModel.trim() !== '' ? customModel.trim() : model;
     await setSetting('geminiApiKey', apiKey.trim());
     await setSetting('geminiModel', finalModel);
+    await setSetting('translationLanguage', transLang);
     setModel(finalModel);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -105,23 +114,75 @@ export default function SettingsScreen() {
     setThemeMode(nextMode);
   };
 
+  const handleLanguageToggle = async () => {
+    const newLang = appLang === 'vi' ? 'en' : 'vi';
+    await saveLanguage(newLang);
+    setAppLang(newLang);
+    forceUpdate(n => n + 1);
+  };
+
   const themeLabel =
-    themeMode === 'system' ? 'Hệ thống' : themeMode === 'dark' ? 'Tối' : 'Sáng';
+    themeMode === 'system' ? t('settings.themeSystem') : themeMode === 'dark' ? t('settings.themeDark') : t('settings.themeLight');
 
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.content}
     >
+      {/* Language Section */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Ionicons name="language" size={22} color={colors.primary} />
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('settings.language')}</Text>
+        </View>
+
+        <View style={[styles.card, { backgroundColor: colors.surfaceCard, borderColor: colors.border }]}>
+          <TouchableOpacity onPress={handleLanguageToggle} style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Text style={[styles.settingLabel, { color: colors.text }]}>{t('settings.language')}</Text>
+              <Text style={[styles.settingValue, { color: colors.textSecondary }]}>
+                {appLang === 'vi' ? '🇻🇳 Tiếng Việt' : '🇬🇧 English'}
+              </Text>
+            </View>
+            <Ionicons name="swap-horizontal" size={22} color={colors.primary} />
+          </TouchableOpacity>
+
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+          {/* Translation target language */}
+          <Text style={[styles.label, { color: colors.textSecondary, marginTop: Spacing.sm }]}>
+            {t('settings.translationLang')}
+          </Text>
+          <View style={styles.modelGrid}>
+            {TARGET_LANGUAGES.map((lang) => (
+              <TouchableOpacity
+                key={lang.id}
+                style={[
+                  styles.modelBtn,
+                  transLang === lang.id
+                    ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                    : { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
+                ]}
+                onPress={() => setTransLang(lang.id)}
+              >
+                <Text style={[styles.modelBtnText, { color: transLang === lang.id ? '#FFFFFF' : colors.text }]}>
+                  {lang.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </View>
+
       {/* Gemini API Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Ionicons name="sparkles" size={22} color={colors.primary} />
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Google Gemini API</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('settings.geminiTitle')}</Text>
         </View>
 
         <View style={[styles.card, { backgroundColor: colors.surfaceCard, borderColor: colors.border }]}>
-          <Text style={[styles.label, { color: colors.textSecondary }]}>API Key</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>{t('settings.apiKey')}</Text>
           <View style={styles.inputRow}>
             <TextInput
               style={[
@@ -134,7 +195,7 @@ export default function SettingsScreen() {
               ]}
               value={apiKey}
               onChangeText={setApiKey}
-              placeholder="Nhập API key..."
+              placeholder={t('settings.apiKeyPlaceholder')}
               placeholderTextColor={colors.textMuted}
               secureTextEntry={!showApiKey}
               autoCapitalize="none"
@@ -159,14 +220,14 @@ export default function SettingsScreen() {
           >
             <Ionicons name={detecting ? 'hourglass' : 'search'} size={16} color={colors.primary} />
             <Text style={[styles.detectBtnText, { color: colors.primary }]}>
-              {detecting ? 'Đang kiểm tra...' : 'Kiểm tra API Key & Tìm Model'}
+              {detecting ? t('settings.detecting') : t('settings.detectModels')}
             </Text>
           </TouchableOpacity>
 
           {detectedModels.length > 0 && (
             <View style={{ marginTop: Spacing.md }}>
               <Text style={[styles.label, { color: colors.textSecondary }]}>
-                Model khả dụng ({detectedModels.length}):
+                {t('settings.availableModels', { count: detectedModels.length })}
               </Text>
               <ScrollView horizontal={false} style={{ maxHeight: 160 }}>
                 {detectedModels.map((m) => (
@@ -193,7 +254,7 @@ export default function SettingsScreen() {
             </View>
           )}
 
-          <Text style={[styles.label, { color: colors.textSecondary, marginTop: Spacing.lg }]}>Mô Hình Dịch (Model)</Text>
+          <Text style={[styles.label, { color: colors.textSecondary, marginTop: Spacing.lg }]}>{t('settings.model')}</Text>
           <View style={styles.modelGrid}>
             {AVAILABLE_MODELS.map((m) => (
               <TouchableOpacity
@@ -221,7 +282,7 @@ export default function SettingsScreen() {
             ))}
           </View>
 
-          <Text style={[styles.label, { color: colors.textSecondary, marginTop: Spacing.md }]}>Hoặc nhập tên Model tùy chỉnh:</Text>
+          <Text style={[styles.label, { color: colors.textSecondary, marginTop: Spacing.md }]}>{t('settings.customModel')}</Text>
           <TextInput
             style={[
               styles.input,
@@ -251,11 +312,11 @@ export default function SettingsScreen() {
               size={18}
               color="#FFFFFF"
             />
-            <Text style={styles.saveBtnText}>{saved ? 'Đã lưu!' : 'Lưu Cài Đặt'}</Text>
+            <Text style={styles.saveBtnText}>{saved ? t('settings.saved') : t('settings.save')}</Text>
           </TouchableOpacity>
 
           <Text style={[styles.hint, { color: colors.textMuted }]}>
-            Tạo API key miễn phí tại aistudio.google.com
+            {appLang === 'vi' ? 'Tạo API key miễn phí tại aistudio.google.com' : 'Get a free API key at aistudio.google.com'}
           </Text>
         </View>
       </View>
@@ -264,13 +325,13 @@ export default function SettingsScreen() {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Ionicons name="color-palette" size={22} color={colors.primary} />
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Giao Diện</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('settings.themeTitle')}</Text>
         </View>
 
         <View style={[styles.card, { backgroundColor: colors.surfaceCard, borderColor: colors.border }]}>
           <TouchableOpacity onPress={handleThemeChange} style={styles.settingRow}>
             <View style={styles.settingInfo}>
-              <Text style={[styles.settingLabel, { color: colors.text }]}>Chế độ hiển thị</Text>
+              <Text style={[styles.settingLabel, { color: colors.text }]}>{t('settings.themeLabel')}</Text>
               <Text style={[styles.settingValue, { color: colors.textSecondary }]}>{themeLabel}</Text>
             </View>
             <Ionicons
@@ -286,23 +347,23 @@ export default function SettingsScreen() {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Ionicons name="information-circle" size={22} color={colors.primary} />
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Thông Tin</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('settings.aboutTitle')}</Text>
         </View>
 
         <View style={[styles.card, { backgroundColor: colors.surfaceCard, borderColor: colors.border }]}>
           <View style={styles.aboutRow}>
-            <Text style={[styles.aboutLabel, { color: colors.textSecondary }]}>Phiên bản</Text>
+            <Text style={[styles.aboutLabel, { color: colors.textSecondary }]}>{t('settings.version')}</Text>
             <Text style={[styles.aboutValue, { color: colors.text }]}>1.0.0</Text>
           </View>
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <View style={styles.aboutRow}>
-            <Text style={[styles.aboutLabel, { color: colors.textSecondary }]}>Dịch bởi</Text>
+            <Text style={[styles.aboutLabel, { color: colors.textSecondary }]}>{t('settings.translatedBy')}</Text>
             <Text style={[styles.aboutValue, { color: colors.text }]}>Google Gemini AI</Text>
           </View>
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <View style={styles.aboutRow}>
-            <Text style={[styles.aboutLabel, { color: colors.textSecondary }]}>Lưu trữ</Text>
-            <Text style={[styles.aboutValue, { color: colors.text }]}>Cục bộ (AsyncStorage)</Text>
+            <Text style={[styles.aboutLabel, { color: colors.textSecondary }]}>{t('settings.storage')}</Text>
+            <Text style={[styles.aboutValue, { color: colors.text }]}>{t('settings.storageValue')}</Text>
           </View>
         </View>
       </View>
