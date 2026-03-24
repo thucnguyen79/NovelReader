@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -35,6 +37,8 @@ export default function BookDetailScreen() {
   const [progress, setProgress] = useState<ReadingProgress | null>(null);
   const [translatingId, setTranslatingId] = useState<number | null>(null);
   const [translationProgress, setTranslationProgress] = useState('');
+  const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+  const [newChapterTitle, setNewChapterTitle] = useState('');
 
   const loadData = useCallback(async () => {
     if (!id) return;
@@ -136,19 +140,17 @@ export default function BookDetailScreen() {
 
   const handleAddChapter = () => {
     if (!book) return;
-    Alert.prompt
-      ? Alert.prompt(t('book.addChapter'), t('book.chapterTitle'), async (title) => {
-          if (!title?.trim()) return;
-          const newNum = chapters.length + 1;
-          await createChapter(book.id, newNum, title.trim(), '');
-          await loadData();
-        })
-      : (() => {
-          // Android fallback: create chapter with default title
-          const newNum = chapters.length + 1;
-          const title = `${t('book.addChapter')} ${newNum}`;
-          createChapter(book.id, newNum, title, '').then(() => loadData());
-        })();
+    setNewChapterTitle(`${t('book.addChapter')} ${chapters.length + 1}`);
+    setIsAddModalVisible(true);
+  };
+
+  const handleSaveNewChapter = async () => {
+    if (!book || !newChapterTitle.trim()) return;
+    const newNum = chapters.length + 1;
+    await createChapter(book.id, newNum, newChapterTitle.trim(), '');
+    await loadData();
+    setIsAddModalVisible(false);
+    setNewChapterTitle('');
   };
 
   const handleDeleteChapter = (chapter: Chapter) => {
@@ -202,21 +204,23 @@ export default function BookDetailScreen() {
           </TouchableOpacity>
         )}
 
-        <TouchableOpacity
-          style={[styles.translateAllBtn, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
-          onPress={handleTranslateAll}
-        >
-          <Ionicons name="language" size={18} color={colors.primary} />
-          <Text style={[styles.translateAllText, { color: colors.primary }]}>{t('book.translateAll')}</Text>
-        </TouchableOpacity>
+        <View style={styles.actionRow}>
+          <TouchableOpacity
+            style={[styles.translateAllBtn, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
+            onPress={handleTranslateAll}
+          >
+            <Ionicons name="language" size={18} color={colors.primary} />
+            <Text style={[styles.translateAllText, { color: colors.primary, flexShrink: 1 }]} numberOfLines={1}>{t('book.translateAll')}</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.translateAllBtn, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
-          onPress={handleAddChapter}
-        >
-          <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
-          <Text style={[styles.translateAllText, { color: colors.primary }]}>{t('book.addChapter')}</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.translateAllBtn, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
+            onPress={handleAddChapter}
+          >
+            <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
+            <Text style={[styles.translateAllText, { color: colors.primary, flexShrink: 1 }]} numberOfLines={1}>{t('book.addChapter')}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Chapter list */}
@@ -299,6 +303,50 @@ export default function BookDetailScreen() {
           </TouchableOpacity>
         )}
       />
+
+      {/* Add Chapter Modal */}
+      <Modal
+        visible={isAddModalVisible}
+        transparent
+        animationType="fade"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
+              {t('book.addChapter')}
+            </Text>
+            <TextInput
+              style={[
+                styles.modalInput,
+                {
+                  backgroundColor: colors.surfaceCard,
+                  color: colors.text,
+                  borderColor: colors.border,
+                },
+              ]}
+              value={newChapterTitle}
+              onChangeText={setNewChapterTitle}
+              placeholder={t('book.chapterTitle')}
+              placeholderTextColor={colors.textMuted}
+              autoFocus
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalBtn, { backgroundColor: colors.surfaceElevated }]}
+                onPress={() => setIsAddModalVisible(false)}
+              >
+                <Text style={[styles.modalBtnText, { color: colors.text }]}>{t('common.cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, { backgroundColor: colors.primary }]}
+                onPress={handleSaveNewChapter}
+              >
+                <Text style={[styles.modalBtnText, { color: '#FFFFFF' }]}>{t('common.save')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -328,12 +376,17 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   actions: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.md,
+    gap: Spacing.md,
+  },
+  actionRow: {
     flexDirection: 'row',
     gap: Spacing.md,
-    padding: Spacing.lg,
   },
   continueBtn: {
-    flex: 1,
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -350,13 +403,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.sm,
+    gap: Spacing.xs,
     paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
   },
   translateAllText: {
     ...Typography.button,
+    fontSize: 14,
   },
   listContent: {
     paddingHorizontal: Spacing.lg,
@@ -418,5 +473,41 @@ const styles = StyleSheet.create({
   },
   translatingText: {
     ...Typography.caption,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.xl,
+  },
+  modalContent: {
+    width: '100%',
+    padding: Spacing.xl,
+    borderRadius: BorderRadius.lg,
+  },
+  modalTitle: {
+    ...Typography.h2,
+    marginBottom: Spacing.lg,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    ...Typography.body,
+    marginBottom: Spacing.xl,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: Spacing.md,
+  },
+  modalBtn: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.md,
+  },
+  modalBtnText: {
+    ...Typography.button,
   },
 });
