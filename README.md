@@ -1,100 +1,77 @@
 # 📖 NovelReader
 
-Ứng dụng đọc và dịch truyện di động, được xây dựng bằng **React Native + Expo**. Hỗ trợ dịch tự động sang tiếng Việt bằng **Google Gemini AI** và đọc to bằng **Text-to-Speech (TTS)**.
+Ứng dụng đọc và dịch truyện chuyên nghiệp trên thiết bị di động, được xây dựng bằng **React Native + Expo**. Hỗ trợ dịch tự động thông minh sang tiếng Việt theo ngữ cảnh nhờ **Google Gemini AI** và trải nghiệm Audio Book chân thực thông qua **Text-to-Speech (TTS)**.
 
-## ✨ Tính năng chính
+## ✨ Tính năng nổi bật
 
 | Tính năng | Mô tả |
 |-----------|-------|
-| 📚 **Quản lý truyện** | Thêm, xóa, quản lý sách với giao diện đẹp mắt |
-| 🌐 **Dịch AI tự động** | Dịch truyện sang tiếng Việt bằng Google Gemini (hỗ trợ nhiều model) |
-| 🔊 **Text-to-Speech** | Đọc to với tùy chỉnh giọng, tốc độ, hẹn giờ tắt |
-| ✏️ **Chỉnh sửa nội dung** | Sửa bản gốc hoặc bản dịch trực tiếp trong app |
-| 🔄 **Dịch lại** | Dịch lại bất kỳ chương nào không ưng ý |
-| ↕️ **Sắp xếp chương** | Thay đổi thứ tự các chương trong sách |
-| ⏩ **Tua câu TTS** | Nhảy tiến/lùi từng câu khi nghe đọc |
-| 🌙 **Dark mode** | Giao diện tối/sáng theo hệ thống hoặc tùy chỉnh |
-| 💾 **Lưu trữ cục bộ** | Dữ liệu lưu trên máy, không cần internet để đọc |
+| 📚 **Quản lý Thư viện** | Theo dõi tiến độ đọc, xem số lượng chương và trạng thái dịch của từng cuốn sách. |
+| ⚡ **Thêm chương hàng loạt** | Tự động nhận diện và cắt (split) văn bản dài thành hàng trăm chương riêng biệt chỉ với 1 thao tác dán. |
+| 🌐 **AI Dịch thuật Ngữ cảnh** | Sử dụng Google Gemini (Hỗ trợ nhiều Model mã nguồn mở và thương mại) để dịch mượt mà, cắt chunk tối ưu. Kèm theo cơ chế chống lỗi Quota thông minh. |
+| 🔊 **Audio Book (TTS)** | Tùy chỉnh Giọng đọc, Tốc độ. **Đặc biệt**: Tự động chuyển chương (Auto-next) và ghi nhớ (Persist) thiết lập nghe cho các lần sau. |
+| ✏️ **Chỉnh sửa Tức thì** | Chỉnh sửa trực tiếp nội dung chương (cả bản gốc lẫn bản dịch) với bộ công cụ điều hướng nổi (Floating UI) chống khuất tầm nhìn. |
+| ↕️ **Smart Sorting** | Tự động phân tích và sắp xếp thứ tự chương dựa trên con số nằm trong tiêu đề bài viết (Chương 1, Chapter 2, Phần 3...). |
+| 🌙 **Giao diện Cao cấp** | Bố cục tối ưu, nền tối (Dark mode) tiết kiệm pin và thân thiện với mắt. |
+| 💾 **Đọc Offline** | Dữ liệu sách và các bản dịch được lưu trực tiếp trên bộ nhớ máy (AsyncStorage), đọc mọi lúc mọi nơi. |
 
 ## 🛠️ Công nghệ
 
-- **Framework**: React Native + Expo SDK 54
+- **Framework**: React Native + Expo SDK 54 / 55
 - **Ngôn ngữ**: TypeScript
-- **Navigation**: Expo Router (file-based routing)
+- **Navigation**: Expo Router (File-based Routing)
 - **Lưu trữ**: AsyncStorage
-- **AI Translation**: Google Gemini API
-- **TTS**: expo-speech
-- **UI**: Custom design system với dark/light theme
+- **AI Backend**: Google Gemini API REST
+- **TTS Engine**: `expo-speech`
+- **UI**: Custom Design System + Glassmorphism / Floating Layouts
 
-## 🚀 Cài đặt & Chạy
+## 🚀 Hướng dẫn nhanh (Quick Start)
 
-### Yêu cầu
+### Cài đặt Môi trường
 - Node.js >= 18
 - npm hoặc yarn
-- Expo Go trên điện thoại (Android/iOS)
+- Ứng dụng **Expo Go** (tải trên App Store hoặc Google Play)
 
-### Bước 1: Clone repo
+### Khởi chạy Dự án
 ```bash
 git clone https://github.com/thucnguyen79/NovelReader.git
 cd NovelReader
-```
-
-### Bước 2: Cài dependencies
-```bash
 npm install
-```
-
-### Bước 3: Chạy app
-```bash
 npx expo start
 ```
+*Quét mã QR bằng Camera (iOS) hoặc Expo Go (Android) để mở ứng dụng.*
 
-### Bước 4: Mở trên điện thoại
-- Cài **Expo Go** từ Play Store / App Store
-- Quét mã QR hiện trên terminal
+---
 
-## 🔑 Cấu hình API Key
+## 📖 Hướng dẫn sử dụng chi tiết
 
-1. Truy cập [Google AI Studio](https://aistudio.google.com/)
-2. Tạo API Key miễn phí
-3. Mở app → Tab **Cài đặt** → Nhập API Key
-4. Nhấn **"Kiểm tra API Key & Tìm Model"** để tìm model phù hợp
-5. Lưu cài đặt
+Để hiểu rõ hơn về cách thiết lập Google API Key miễn phí, tính năng tách chương, hay các thủ thuật dùng Audio Book, vui lòng đọc tài liệu chi tiết tại:
 
-## 📁 Cấu trúc dự án
+👉 **[Xem Hướng dẫn sử dụng (Usage Guide)](./usage_guide.md)**
+
+---
+
+## 📁 Cấu trúc thư mục cốt lõi
 
 ```
 NovelReader/
-├── app/                    # Screens (Expo Router)
-│   ├── (tabs)/             # Tab navigation
-│   │   ├── index.tsx       # Trang chủ - Thư viện
-│   │   └── settings.tsx    # Cài đặt
-│   ├── add-book.tsx        # Thêm sách mới
-│   ├── book/[id].tsx       # Chi tiết sách
-│   └── reader/[chapterId].tsx  # Đọc truyện
+├── app/                    # Màn hình cấu trúc theo Expo Router
+│   ├── (tabs)/             # Thư viện & Cài đặt hệ thống
+│   ├── add-book.tsx        # Màn hình tạo sách
+│   ├── book/[id].tsx       # Màn hình Quản lý Chương (Bulk insert, Translate, Sort)
+│   └── reader/[chapterId].tsx  # Màn hình Đọc và Nghe truyện
 ├── src/
-│   ├── components/         # UI components
-│   │   ├── BookCard.tsx
-│   │   └── TTSPlayer.tsx
-│   ├── database/           # Data layer (AsyncStorage)
-│   │   ├── database.ts
-│   │   └── types.ts
-│   ├── services/           # API & TTS services
-│   │   ├── geminiService.ts
-│   │   └── ttsService.ts
-│   └── theme/              # Design system
-│       ├── colors.ts
-│       ├── typography.ts
-│       └── ThemeProvider.tsx
-├── app.json
-├── package.json
-└── tsconfig.json
+│   ├── components/         # Giao diện tái sử dụng (TTSPlayer, BookCard...)
+│   ├── database/           # AsyncStorage CRUD (+Thuật toán Smart Sort)
+│   ├── services/           # Gemini API (Rate limit, Chunking) & TTS Pipeline
+│   ├── utils/              # Tiện ích (Chapter Splitting bằng Regex)
+│   └── theme/              # Typography, Colors, ThemeProvider
 ```
 
-## 📄 License
+## 📄 Bản quyền (License)
 
-MIT License
+Dự án tuân theo giấy phép MIT License.
 
-## 👤 Tác giả
+## 👤 Chủ sở hữu
 
 [@thucnguyen79](https://github.com/thucnguyen79)
