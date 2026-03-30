@@ -9,8 +9,12 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { Typography, Spacing, BorderRadius } from '../../src/theme/typography';
@@ -23,15 +27,18 @@ import {
   swapChapterOrder,
   deleteChapter,
   createChapter,
+  sortChaptersByTitle,
 } from '../../src/database/database';
 import { Book, Chapter, ReadingProgress } from '../../src/database/types';
 import { translateChapter } from '../../src/services/geminiService';
 import { t } from '../../src/i18n/i18n';
+import { splitIntoChapters } from '../../src/utils/chapterUtils';
 
 export default function BookDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { colors } = useTheme();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [book, setBook] = useState<Book | null>(null);
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [progress, setProgress] = useState<ReadingProgress | null>(null);
@@ -39,6 +46,7 @@ export default function BookDetailScreen() {
   const [translationProgress, setTranslationProgress] = useState('');
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [newChapterTitle, setNewChapterTitle] = useState('');
+  const [newChapterContent, setNewChapterContent] = useState('');
 
   const loadData = useCallback(async () => {
     if (!id) return;
@@ -77,8 +85,9 @@ export default function BookDetailScreen() {
     setTranslationProgress(t('book.translating', { current: 0, total: 1 }));
 
     try {
+      const contentToTranslate = `${chapter.title}\n\n${chapter.originalContent}`;
       const translated = await translateChapter(
-        chapter.originalContent,
+        contentToTranslate,
         apiKey,
         (current, total) => {
           setTranslationProgress(t('book.translating', { current, total }));
@@ -141,16 +150,42 @@ export default function BookDetailScreen() {
   const handleAddChapter = () => {
     if (!book) return;
     setNewChapterTitle(`${t('book.addChapter')} ${chapters.length + 1}`);
+    setNewChapterContent('');
     setIsAddModalVisible(true);
   };
 
   const handleSaveNewChapter = async () => {
-    if (!book || !newChapterTitle.trim()) return;
-    const newNum = chapters.length + 1;
-    await createChapter(book.id, newNum, newChapterTitle.trim(), '');
+    if (!book || (!newChapterTitle.trim() && !newChapterContent.trim())) return;
+
+    if (newChapterContent.trim()) {
+      const parsedChapters = splitIntoChapters(newChapterContent.trim());
+      let nextNum = chapters.length + 1;
+      
+      if (parsedChapters.length === 1) {
+        // Just one chapter
+        await createChapter(book.id, nextNum, newChapterTitle.trim() || parsedChapters[0].title, parsedChapters[0].content);
+      } else {
+        // Bulk add multiple chapters
+        for (const ch of parsedChapters) {
+          await createChapter(book.id, nextNum++, ch.title, ch.content);
+        }
+      }
+    } else {
+      // Empty chapter
+      const newNum = chapters.length + 1;
+      await createChapter(book.id, newNum, newChapterTitle.trim(), '');
+    }
+
     await loadData();
     setIsAddModalVisible(false);
     setNewChapterTitle('');
+    setNewChapterContent('');
+  };
+
+  const handleSortChapters = async () => {
+    if (!book) return;
+    await sortChaptersByTitle(book.id);
+    await loadData();
   };
 
   const handleDeleteChapter = (chapter: Chapter) => {
@@ -184,8 +219,11 @@ export default function BookDetailScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Book header */}
-      <View style={[styles.header, { backgroundColor: book.coverColor }]}>
-        <Ionicons name="book" size={40} color="rgba(255,255,255,0.9)" />
+      <View style={[styles.header, { backgroundColor: book.coverColor, paddingTop: insets.top + Spacing.sm }]}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={24} color="rgba(255,255,255,0.9)" />
+        </TouchableOpacity>
+        <Ionicons name="book" size={40} color="rgba(255,255,255,0.9)" style={{ marginTop: Spacing.sm }} />
         <Text style={styles.bookTitle}>{book.title}</Text>
         <Text style={styles.bookMeta}>
           {t('book.chapters', { count: chapters.length })} · {t('book.translated', { count: translatedCount })}
@@ -211,6 +249,14 @@ export default function BookDetailScreen() {
           >
             <Ionicons name="language" size={18} color={colors.primary} />
             <Text style={[styles.translateAllText, { color: colors.primary, flexShrink: 1 }]} numberOfLines={1}>{t('book.translateAll')}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.translateAllBtn, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
+            onPress={handleSortChapters}
+          >
+            <Ionicons name="filter-circle-outline" size={18} color={colors.primary} />
+            <Text style={[styles.translateAllText, { color: colors.primary, flexShrink: 1 }]} numberOfLines={1}>Sắp xếp</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -310,42 +356,71 @@ export default function BookDetailScreen() {
         transparent
         animationType="fade"
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>
-              {t('book.addChapter')}
-            </Text>
-            <TextInput
-              style={[
-                styles.modalInput,
-                {
-                  backgroundColor: colors.surfaceCard,
-                  color: colors.text,
-                  borderColor: colors.border,
-                },
-              ]}
-              value={newChapterTitle}
-              onChangeText={setNewChapterTitle}
-              placeholder={t('book.chapterTitle')}
-              placeholderTextColor={colors.textMuted}
-              autoFocus
-            />
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: colors.surfaceElevated }]}
-                onPress={() => setIsAddModalVisible(false)}
-              >
-                <Text style={[styles.modalBtnText, { color: colors.text }]}>{t('common.cancel')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: colors.primary }]}
-                onPress={handleSaveNewChapter}
-              >
-                <Text style={[styles.modalBtnText, { color: '#FFFFFF' }]}>{t('common.save')}</Text>
-              </TouchableOpacity>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <ScrollView
+            contentContainerStyle={styles.modalScroll}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                {t('book.addChapter')}
+              </Text>
+              
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Tiêu đề chương</Text>
+              <TextInput
+                style={[
+                  styles.modalInput,
+                  {
+                    backgroundColor: colors.surfaceCard,
+                    color: colors.text,
+                    borderColor: colors.border,
+                    marginBottom: Spacing.md,
+                  },
+                ]}
+                value={newChapterTitle}
+                onChangeText={setNewChapterTitle}
+                placeholder="Ví dụ: Chương 1"
+                placeholderTextColor={colors.textMuted}
+              />
+
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Nội dung (hỗ trợ nhập nhiều chương)</Text>
+              <TextInput
+                style={[
+                  styles.modalInput,
+                  {
+                    backgroundColor: colors.surfaceCard,
+                    color: colors.text,
+                    borderColor: colors.border,
+                    minHeight: 180,
+                    textAlignVertical: 'top',
+                  },
+                ]}
+                value={newChapterContent}
+                onChangeText={setNewChapterContent}
+                placeholder="Dán nội dung chương vào đây..."
+                placeholderTextColor={colors.textMuted}
+                multiline
+              />
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={[styles.modalBtn, { backgroundColor: colors.surfaceElevated }]}
+                  onPress={() => setIsAddModalVisible(false)}
+                >
+                  <Text style={[styles.modalBtnText, { color: colors.text }]}>{t('common.cancel')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalBtn, { backgroundColor: colors.primary }]}
+                  onPress={handleSaveNewChapter}
+                >
+                  <Text style={[styles.modalBtnText, { color: '#FFFFFF' }]}>{t('common.save')}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -360,9 +435,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   header: {
-    paddingVertical: Spacing.xxxl,
+    paddingBottom: Spacing.xl,
     paddingHorizontal: Spacing.lg,
     alignItems: 'center',
+    position: 'relative',
+  },
+  backBtn: {
+    position: 'absolute',
+    left: Spacing.md,
+    top: Spacing.xxxl,
+    zIndex: 10,
+    padding: Spacing.xs,
   },
   bookTitle: {
     ...Typography.h1,
@@ -477,6 +560,9 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalScroll: {
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: Spacing.xl,
@@ -495,7 +581,12 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
     padding: Spacing.md,
     ...Typography.body,
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
+  },
+  label: {
+    ...Typography.label,
+    marginBottom: Spacing.xs,
+    fontSize: 14,
   },
   modalActions: {
     flexDirection: 'row',

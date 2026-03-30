@@ -14,6 +14,7 @@ import { useTheme } from '../theme/ThemeProvider';
 import { Typography, Spacing, BorderRadius } from '../theme/typography';
 import * as ttsService from '../services/ttsService';
 import { VoiceInfo } from '../services/ttsService';
+import { getSetting, setSetting } from '../database/database';
 
 interface TTSPlayerProps {
   text: string;
@@ -22,6 +23,7 @@ interface TTSPlayerProps {
   bookId?: number;
   initialSpeed?: number;
   initialVoice?: string;
+  onFinish?: () => void;
 }
 
 const SLEEP_OPTIONS = [
@@ -39,6 +41,7 @@ export const TTSPlayer: React.FC<TTSPlayerProps> = ({
   onStop,
   initialSpeed = 1.0,
   initialVoice,
+  onFinish,
 }) => {
   const { colors } = useTheme();
   const [isPlaying, setIsPlaying] = useState(false);
@@ -52,6 +55,22 @@ export const TTSPlayer: React.FC<TTSPlayerProps> = ({
 
   useEffect(() => {
     ttsService.getAvailableVoices().then(setVoices);
+    
+    // Load stored settings on mount if not strictly using props initially
+    Promise.all([
+      getSetting('ttsSpeed'),
+      getSetting('ttsVoice'),
+    ]).then(([storedSpeed, storedVoice]) => {
+      if (storedSpeed) {
+        const s = parseFloat(storedSpeed);
+        setSpeed(s);
+        ttsService.setSpeed(s);
+      }
+      if (storedVoice) {
+        setSelectedVoice(storedVoice);
+        ttsService.setVoice(storedVoice);
+      }
+    });
   }, []);
 
   const handlePlay = useCallback(() => {
@@ -74,6 +93,7 @@ export const TTSPlayer: React.FC<TTSPlayerProps> = ({
         onDone: () => {
           setIsPlaying(false);
           onStop?.();
+          onFinish?.();
         },
         onSentenceChange,
       });
@@ -91,11 +111,13 @@ export const TTSPlayer: React.FC<TTSPlayerProps> = ({
     const rounded = Math.round(value * 10) / 10;
     setSpeed(rounded);
     ttsService.setSpeed(rounded);
+    setSetting('ttsSpeed', rounded.toString());
   }, []);
 
   const handleVoiceSelect = useCallback((voice: VoiceInfo) => {
     setSelectedVoice(voice.identifier);
     ttsService.setVoice(voice.identifier);
+    setSetting('ttsVoice', voice.identifier);
     setShowVoiceModal(false);
     // Restart if currently playing
     if (isPlaying) {

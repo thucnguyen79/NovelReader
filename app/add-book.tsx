@@ -17,6 +17,7 @@ import { useTheme } from '../src/theme/ThemeProvider';
 import { Typography, Spacing, BorderRadius } from '../src/theme/typography';
 import { createBook, createChapter } from '../src/database/database';
 import { t } from '../src/i18n/i18n';
+import { splitIntoChapters } from '../src/utils/chapterUtils';
 
 export default function AddBookScreen() {
   const { colors } = useTheme();
@@ -38,54 +39,6 @@ export default function AddBookScreen() {
     }
   };
 
-  const splitIntoChapters = (text: string): { title: string; content: string }[] => {
-    // Try to split by common chapter patterns
-    const chapterPatterns = [
-      /^(Chương\s+\d+[^\n]*)/gim,
-      /^(Chapter\s+\d+[^\n]*)/gim,
-      /^(第[一二三四五六七八九十百千\d]+[章回节][^\n]*)/gim,
-      /^(CHAPTER\s+\d+[^\n]*)/gim,
-    ];
-
-    for (const pattern of chapterPatterns) {
-      const parts = text.split(pattern).filter((s) => s.trim());
-      if (parts.length > 1) {
-        const chapters: { title: string; content: string }[] = [];
-        for (let i = 0; i < parts.length; i += 2) {
-          const chTitle = parts[i]?.trim() || `Chương ${chapters.length + 1}`;
-          const chContent = parts[i + 1]?.trim() || parts[i]?.trim() || '';
-          if (chContent) {
-            chapters.push({ title: chTitle, content: chContent });
-          }
-        }
-        if (chapters.length > 0) return chapters;
-      }
-    }
-
-    // No chapter markers found — split by paragraphs into ~3000 char chunks
-    if (text.length > 5000) {
-      const paragraphs = text.split(/\n\s*\n/);
-      const chapters: { title: string; content: string }[] = [];
-      let currentContent = '';
-      let chapterNum = 1;
-
-      for (const para of paragraphs) {
-        if (currentContent.length + para.length > 3000 && currentContent.length > 0) {
-          chapters.push({ title: `Phần ${chapterNum}`, content: currentContent.trim() });
-          currentContent = '';
-          chapterNum++;
-        }
-        currentContent += (currentContent ? '\n\n' : '') + para;
-      }
-      if (currentContent.trim()) {
-        chapters.push({ title: `Phần ${chapterNum}`, content: currentContent.trim() });
-      }
-      return chapters;
-    }
-
-    // Short text — single chapter
-    return [{ title: 'Chương 1', content: text }];
-  };
 
   const handleSave = async () => {
     if (!title.trim()) {
@@ -187,17 +140,23 @@ export default function AddBookScreen() {
             {t('addBook.autoSplitHint')}
           </Text>
         </View>
-
-        {/* Save button */}
-        <TouchableOpacity
-          onPress={handleSave}
-          disabled={saving}
-          style={[styles.saveBtn, { backgroundColor: saving ? colors.textMuted : colors.primary }]}
-        >
-          <Ionicons name="save" size={20} color="#FFFFFF" />
-          <Text style={styles.saveBtnText}>{saving ? t('addBook.saving') : t('addBook.save')}</Text>
-        </TouchableOpacity>
       </ScrollView>
+
+      {/* Save button (Floating) */}
+      <TouchableOpacity
+        onPress={handleSave}
+        disabled={saving}
+        style={[styles.floatingSaveBtn, { backgroundColor: saving ? colors.textMuted : colors.primary }]}
+      >
+        {saving ? (
+          <Text style={styles.floatingSaveBtnText}>{t('addBook.saving')}</Text>
+        ) : (
+          <>
+            <Ionicons name="save" size={24} color="#FFFFFF" />
+            <Text style={styles.floatingSaveBtnText}>{t('addBook.save')}</Text>
+          </>
+        )}
+      </TouchableOpacity>
     </KeyboardAvoidingView>
   );
 }
@@ -267,16 +226,24 @@ const styles = StyleSheet.create({
     ...Typography.bodySm,
     flex: 1,
   },
-  saveBtn: {
+  floatingSaveBtn: {
+    position: 'absolute',
+    bottom: Spacing.xl,
+    right: Spacing.xl,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    paddingVertical: Spacing.lg,
-    borderRadius: BorderRadius.md,
-    marginTop: Spacing.xl,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: BorderRadius.round,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 6,
   },
-  saveBtnText: {
+  floatingSaveBtnText: {
     color: '#FFFFFF',
     ...Typography.button,
   },

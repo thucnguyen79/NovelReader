@@ -24,7 +24,11 @@ export async function getAllBooks(): Promise<Book[]> {
   const data = await AsyncStorage.getItem(KEYS.BOOKS);
   if (!data) return [];
   const books: Book[] = JSON.parse(data);
-  return books.sort((a, b) => new Date(b.updatedAt!).getTime() - new Date(a.updatedAt!).getTime());
+  return books.sort((a, b) => {
+    const timeA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+    const timeB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+    return timeB - timeA;
+  });
 }
 
 export async function getBook(id: number): Promise<Book | null> {
@@ -114,6 +118,30 @@ export async function createChapter(
   allChapters.push(newChapter);
   await AsyncStorage.setItem(KEYS.CHAPTERS, JSON.stringify(allChapters));
   return newId;
+}
+
+export async function sortChaptersByTitle(bookId: number): Promise<void> {
+  const data = await AsyncStorage.getItem(KEYS.CHAPTERS);
+  if (!data) return;
+  const allChapters: Chapter[] = JSON.parse(data);
+  const bookChapters = allChapters.filter(c => c.bookId === bookId);
+  const otherChapters = allChapters.filter(c => c.bookId !== bookId);
+
+  // Extract number from title for sorting (e.g., "Chương 12" -> 12, "Chapter 3" -> 3)
+  const extractNum = (title: string) => {
+    const match = title.match(/\d+/);
+    return match ? parseInt(match[0], 10) : 999999;
+  };
+
+  bookChapters.sort((a, b) => extractNum(a.title) - extractNum(b.title));
+
+  // Re-assign chapterNumbers sequentially
+  bookChapters.forEach((ch, index) => {
+    ch.chapterNumber = index + 1;
+  });
+
+  const newAllChapters = [...otherChapters, ...bookChapters];
+  await AsyncStorage.setItem(KEYS.CHAPTERS, JSON.stringify(newAllChapters));
 }
 
 export async function updateChapterTranslation(

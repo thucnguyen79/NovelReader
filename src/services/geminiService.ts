@@ -48,7 +48,10 @@ export async function translateText(
     }
     if (response.status === 429) {
       if (errText.includes('limit: 0')) {
-        throw new Error(`API Key không hỗ trợ mô hình "${model}" (Limit = 0). Hãy vào Cài đặt chọn mô hình "2.0 Flash (Thử nghiệm)" hoặc tự nhập "gemini-2.0-flash-exp".`);
+        throw new Error(`API Key không hỗ trợ mô hình "${model}" (Limit = 0). Hãy vào Cài đặt đổi mô hình.`);
+      }
+      if (errText.includes('Quota exceeded') || errText.includes('exceeded your current quota')) {
+        throw new Error(`API Key của bạn đã hết hạn mức (Quota Exceeded) cho mô hình "${model}". Vui lòng đổi Key khác hoặc chờ sang ngày mới.`);
       }
       if (retryCount < 2) {
         console.log('Rate limit hit (429). Retrying in 30s...');
@@ -63,8 +66,13 @@ export async function translateText(
 
   if (data.error) {
     if (data.error.code === 429) {
-      if (typeof data.error.message === 'string' && data.error.message.includes('limit: 0')) {
-        throw new Error('API Key của bạn không hỗ trợ mô hình này (Limit = 0). Hãy vào tab Cài đặt đổi sang mô hình khác.');
+      if (typeof data.error.message === 'string') {
+        if (data.error.message.includes('limit: 0')) {
+          throw new Error('API Key của bạn không hỗ trợ mô hình này (Limit = 0). Hãy vào tab Cài đặt đổi sang mô hình khác.');
+        }
+        if (data.error.message.includes('Quota exceeded') || data.error.message.includes('exceeded your current quota')) {
+          throw new Error(`API Key của bạn đã hết hạn mức (Quota Exceeded) cho mô hình "${await getGeminiModel()}". Vui lòng đổi Key khác hoặc chờ sang ngày mới.`);
+        }
       }
       if (retryCount < 2) {
         console.log('Rate limit hit (429 data code). Retrying in 30s...');
@@ -139,17 +147,7 @@ export async function translateChapter(
   for (let i = 0; i < chunks.length; i++) {
     onProgress?.(i + 1, chunks.length);
 
-    let translated = '';
-    try {
-      translated = await translateText(chunks[i], contextSummary, apiKey);
-    } catch (error) {
-      if (i > 0) {
-        // If we translated at least 1 chunk, don't fail the whole chapter, just append error
-        translated = `\n\n[LỖI DỊCH ĐOẠN NÀY: ${(error as Error).message}]\n\n` + chunks[i];
-      } else {
-        throw error; // Fail whole chapter if first chunk fails
-      }
-    }
+    const translated = await translateText(chunks[i], contextSummary, apiKey);
     
     translatedChunks.push(translated);
 

@@ -9,6 +9,8 @@ import {
   Alert,
   Dimensions,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -97,8 +99,9 @@ export default function ReaderScreen() {
 
     setTranslating(true);
     try {
+      const contentToTranslate = `${chapter.title}\n\n${chapter.originalContent}`;
       const translated = await translateChapter(
-        chapter.originalContent,
+        contentToTranslate,
         apiKey,
         (current, total) => {
           setTranslationProgress(t('book.translating', { current, total }));
@@ -118,6 +121,7 @@ export default function ReaderScreen() {
   const handleStartEdit = () => {
     setEditText(displayText);
     setIsEditing(true);
+    setShowControls(false); // Hide TTS and header when editing
   };
 
   const handleSaveEdit = async () => {
@@ -129,11 +133,13 @@ export default function ReaderScreen() {
     }
     await loadChapter();
     setIsEditing(false);
+    setShowControls(true);
     Alert.alert(t('reader.saved'), t('reader.savedMsg'));
   };
 
   const handleCancelEdit = () => {
     setIsEditing(false);
+    setShowControls(true);
     setEditText('');
   };
 
@@ -173,7 +179,10 @@ export default function ReaderScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <KeyboardAvoidingView 
+      style={[styles.container, { backgroundColor: colors.background }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       {/* Header */}
       {showControls && (
         <View style={[styles.header, { backgroundColor: colors.surface, paddingTop: insets.top }]}>
@@ -308,22 +317,6 @@ export default function ReaderScreen() {
                 textAlignVertical="top"
                 autoCorrect={false}
               />
-              <View style={styles.editActions}>
-                <TouchableOpacity
-                  style={[styles.editCancelBtn, { borderColor: colors.border }]}
-                  onPress={handleCancelEdit}
-                >
-                  <Ionicons name="close" size={18} color={colors.textSecondary} />
-                  <Text style={[styles.editBtnLabel, { color: colors.textSecondary }]}>{t('common.cancel')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.editSaveBtn, { backgroundColor: colors.primary }]}
-                  onPress={handleSaveEdit}
-                >
-                  <Ionicons name="checkmark" size={18} color="#FFF" />
-                  <Text style={[styles.editBtnLabel, { color: '#FFF' }]}>{t('common.save')}</Text>
-                </TouchableOpacity>
-              </View>
             </View>
           ) : (
             <Text style={[styles.textContent, { fontSize, lineHeight: fontSize * 1.7 }]}>
@@ -374,10 +367,30 @@ export default function ReaderScreen() {
             text={displayText}
             onSentenceChange={handleSentenceChange}
             onStop={() => setCurrentSentenceIdx(-1)}
+            onFinish={() => navigateChapter('next')}
           />
         </View>
       )}
-    </View>
+
+      {/* Floating Edit Controls */}
+      {isEditing && (
+        <View style={[styles.floatingEditActions, { bottom: insets.bottom + Spacing.xl }]}>
+          <TouchableOpacity
+            style={[styles.floatingEditBtn, { backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderWidth: 1 }]}
+            onPress={handleCancelEdit}
+          >
+            <Ionicons name="close" size={24} color={colors.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.floatingSaveBtn, { backgroundColor: colors.primary }]}
+            onPress={handleSaveEdit}
+          >
+            <Ionicons name="save" size={24} color="#FFFFFF" />
+            <Text style={[styles.floatingSaveBtnText, { color: '#FFFFFF' }]}>{t('common.save')}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </KeyboardAvoidingView>
   );
 }
 
@@ -491,31 +504,35 @@ const styles = StyleSheet.create({
     minHeight: 300,
     textAlignVertical: 'top',
   },
-  editActions: {
+  floatingEditActions: {
+    position: 'absolute',
+    right: Spacing.xl,
     flexDirection: 'row',
     gap: Spacing.md,
-    marginTop: Spacing.lg,
+    zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 6,
   },
-  editCancelBtn: {
-    flex: 1,
+  floatingEditBtn: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  floatingSaveBtn: {
+    height: 56,
+    borderRadius: 28,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: Spacing.xl,
     gap: Spacing.sm,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
   },
-  editSaveBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-  },
-  editBtnLabel: {
+  floatingSaveBtnText: {
     ...Typography.button,
   },
 });

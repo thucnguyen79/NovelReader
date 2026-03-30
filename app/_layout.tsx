@@ -36,7 +36,7 @@ function RootLayoutInner() {
         />
         <Stack.Screen
           name="book/[id]"
-          options={{ title: t('book.title') }}
+          options={{ title: t('book.title'), headerShown: false }}
         />
         <Stack.Screen
           name="reader/[chapterId]"
