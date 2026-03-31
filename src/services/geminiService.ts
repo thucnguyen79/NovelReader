@@ -46,6 +46,12 @@ export async function translateText(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
+      safetySettings: [
+        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+      ],
       generationConfig: {
         temperature: 0.7,
         maxOutputTokens: 8192,
@@ -128,18 +134,21 @@ Requirements:
   return prompt;
 }
 
-export function splitTextIntoChunks(text: string, maxChunkSize: number = 4000): string[] {
-  // Support both single and double newlines to prevent huge unbroken blocks
-  const paragraphs = text.split(/\n+/);
+export function splitTextIntoChunks(text: string, maxChunkSize: number = 2500): string[] {
+  // Use a simple newline split to ensure paragraphs are split correctly. 
+  // Then stitch them back together up to maxChunkSize.
+  const paragraphs = text.split('\n');
   const chunks: string[] = [];
   let currentChunk = '';
 
   for (const paragraph of paragraphs) {
-    if (currentChunk.length + paragraph.length + 2 > maxChunkSize && currentChunk.length > 0) {
+    if (!paragraph.trim()) continue;
+
+    if (currentChunk.length + paragraph.length + 1 > maxChunkSize && currentChunk.length > 0) {
       chunks.push(currentChunk.trim());
       currentChunk = '';
     }
-    currentChunk += (currentChunk ? '\n\n' : '') + paragraph;
+    currentChunk += (currentChunk ? '\n' : '') + paragraph.trim();
   }
 
   if (currentChunk.trim()) {
