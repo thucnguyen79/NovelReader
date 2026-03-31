@@ -22,6 +22,8 @@
       }
     },
     "android": {
+      "package": "com.thucnguyen79.novelreader",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#0F0A1E",
         "foregroundImage": "./assets/android-icon-foreground.png",

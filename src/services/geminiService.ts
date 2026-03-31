@@ -19,12 +19,24 @@ export async function getGeminiModel(): Promise<string> {
   return model || 'gemini-1.5-flash';
 }
 
+let lastRequestTime = 0;
+const MIN_API_DELAY_MS = 4500; // Limits to ~13 RPM (Max is 15 RPM)
+
 export async function translateText(
   text: string,
   contextSummary: string = '',
   apiKey: string,
   retryCount: number = 0
 ): Promise<string> {
+  // Global Rate Limiter: Ensure at least MIN_API_DELAY_MS between any API calls
+  const now = Date.now();
+  const timeSinceLastReq = now - lastRequestTime;
+  if (timeSinceLastReq < MIN_API_DELAY_MS && lastRequestTime !== 0) {
+    await new Promise(resolve => setTimeout(resolve, MIN_API_DELAY_MS - timeSinceLastReq));
+  }
+  
+  lastRequestTime = Date.now();
+
   const prompt = buildTranslationPrompt(text, contextSummary, await getTranslationLanguage());
   const model = await getGeminiModel();
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
@@ -115,7 +127,7 @@ Requirements:
   return prompt;
 }
 
-export function splitTextIntoChunks(text: string, maxChunkSize: number = 2500): string[] {
+export function splitTextIntoChunks(text: string, maxChunkSize: number = 8000): string[] {
   const paragraphs = text.split(/\n\s*\n/);
   const chunks: string[] = [];
   let currentChunk = '';
@@ -153,11 +165,6 @@ export async function translateChapter(
 
     // Build context from last translated chunk (truncated)
     contextSummary = translated.slice(-500);
-
-    // Constant delay of 4.5 seconds to respect 15 Requests Per Minute limit (~4s per req)
-    if (i < chunks.length - 1) {
-      await new Promise((resolve) => setTimeout(resolve, 4500));
-    }
   }
 
   return translatedChunks.join('\n\n');
