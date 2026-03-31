@@ -229,7 +229,7 @@ export default function SettingsScreen() {
               <Text style={[styles.label, { color: colors.textSecondary }]}>
                 {t('settings.availableModels', { count: detectedModels.length })}
               </Text>
-              <ScrollView horizontal={false} style={{ maxHeight: 160 }}>
+              <ScrollView horizontal={false} nestedScrollEnabled style={{ maxHeight: 320 }}>
                 {detectedModels.map((m) => (
                   <TouchableOpacity
                     key={m}
