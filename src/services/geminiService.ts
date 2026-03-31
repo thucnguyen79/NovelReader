@@ -113,6 +113,7 @@ function buildTranslationPrompt(text: string, contextSummary: string, targetLang
   let prompt = `You are a professional translator specializing in novels and fiction. Translate the following text into ${langName}.
 
 Requirements:
+- TRANSLATE THE ENTIRE TEXT comprehensively. DO NOT omit, skip, or summarize any sentences or paragraphs.
 - Translate naturally, keep the literary style, do not translate word by word
 - Preserve context and emotions of the story
 - Keep character names as-is or transliterate naturally
@@ -127,8 +128,9 @@ Requirements:
   return prompt;
 }
 
-export function splitTextIntoChunks(text: string, maxChunkSize: number = 8000): string[] {
-  const paragraphs = text.split(/\n\s*\n/);
+export function splitTextIntoChunks(text: string, maxChunkSize: number = 4000): string[] {
+  // Support both single and double newlines to prevent huge unbroken blocks
+  const paragraphs = text.split(/\n+/);
   const chunks: string[] = [];
   let currentChunk = '';
 
